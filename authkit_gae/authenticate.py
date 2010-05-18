@@ -23,10 +23,12 @@ class GoogleAccountHandler(AuthKitAuthHandler):
 class GoogleUserSetter(AuthKitUserSetter):
     def __init__(self,
         app,
-        signout_path=None
+        signout_path=None,
+        admin_role=None,
     ):
         self.app = app
         self.signout_path = signout_path
+        self.admin_role = admin_role
     
     def __call__(self, environ, start_response):
         user = get_current_user()
@@ -43,6 +45,9 @@ class GoogleUserSetter(AuthKitUserSetter):
                     ('Content-Length','0'),
                 ])
                 return ['redirecting to %s' % logout_url]
+        
+        if self.admin_role:
+            environ['authkit.google.adminrole'] = self.admin_role
         
         return self.app(environ, start_response)
 
@@ -67,6 +72,7 @@ def load_google_config(
     
     user_setter_params = {
         'signout_path':  auth_conf.get('signoutpath', None),
+        'admin_role': auth_conf.get('adminrole', None),
     }
 
     return app, auth_handler_params, user_setter_params

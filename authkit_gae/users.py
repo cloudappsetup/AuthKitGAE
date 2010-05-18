@@ -3,6 +3,7 @@ from authkit.users import AuthKitNoSuchUserError, AuthKitNoSuchRoleError, \
 from paste.util.import_string import eval_import
 from authkit_gae.models import *
 from google.appengine.ext import db
+from google.appengine.api.users import get_current_user, is_current_user_admin
 
 class UsersFromDatastore(Users):
     api_version = 0.4
@@ -13,6 +14,10 @@ class UsersFromDatastore(Users):
                 return password
         self.encrypt = encrypt
         self.environ = environ
+        
+        self.adminrole = environ.get('authkit.google.adminrole', None)
+        if self.adminrole:
+            self.adminrole = self.adminrole.lower()
         
         # load the user_model given in the data:
         if data and isinstance(data, (str, unicode)):
@@ -81,6 +86,8 @@ class UsersFromDatastore(Users):
         Remove the role specified. Rasies an exception if the role is still in use. 
         To delete the role and remove it from all existing users use ``role_delete_cascade()``
         """
+        if self.adminrole and role.lower() == self.adminrole:
+            raise AuthKitError("Cannot delete magic role %r" % role)
         
         r = UserRole.all().filter("name =", role.lower()).get()
         if r is None:
@@ -113,6 +120,9 @@ class UsersFromDatastore(Users):
         """
         Remove the role specified and remove the role from any users who used it
         """
+        if self.adminrole and role.lower() == self.adminrole:
+            raise AuthKitError("Cannot delete magic role %r" % role)
+        
         r = UserRole.all().filter("name =", role.lower()).get()
         if r is None:
             raise AuthKitError("There is no such role %r" % role)
@@ -150,6 +160,9 @@ class UsersFromDatastore(Users):
         """
         Returns ``True`` if the role exists, ``False`` otherwise. Roles are case insensitive.
         """
+        if self.adminrole and role.lower() == self.adminrole:
+            return True
+        
         return UserRole.all().filter("name =", role.lower()).count() > 0
         
     def group_exists(self, group):
@@ -206,6 +219,11 @@ class UsersFromDatastore(Users):
             group = usr.group.name
         
         roles = [r.name for r in UserRole.get(usr.roles)]
+        if self.adminrole:
+            logged = get_current_user()
+            if logged and logged.email().lower() == usr.username:
+                if is_current_user_admin():
+                    roles.append(self.adminrole)
         roles.sort()
         
         return {
@@ -311,6 +329,9 @@ class UsersFromDatastore(Users):
         if usr is None:
             raise AuthKitNoSuchUserError("No such user %r" % username)
         
+        if self.adminrole and role.lower() == self.adminrole:
+            raise AuthKitError("Cannot assign magic role %r explicitly" % role)
+        
         r = UserRole.all().filter("name =", role.lower()).get()
         if r is None:
             if not add_if_necessary:
@@ -329,6 +350,9 @@ class UsersFromDatastore(Users):
         usr = self.user_model.all().filter("username =", username.lower()).get()
         if usr is None:
             raise AuthKitNoSuchUserError("No such user %r" % username)
+        
+        if self.adminrole and role.lower() == self.adminrole:
+            raise AuthKitError("Cannot remove magic role %r" % role)
         
         r = UserRole.all().filter("name =", role.lower()).get()
         if r is None:
