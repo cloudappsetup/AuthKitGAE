@@ -201,12 +201,16 @@ class UsersFromDatastore(Users):
         if usr is None:
             raise AuthKitNoSuchUserError("No such user %r" % username)
         
+        group = None
+        if usr.group:
+            group = usr.group.name
+        
         roles = [r.name for r in UserRole.get(usr.roles)]
         roles.sort()
         
         return {
             'username': usr.username,
-            'group':    usr.group.name,
+            'group':    group,
             'password': usr.password,
             'roles':    roles,
         }
