@@ -1,0 +1,62 @@
+Google App Engine plugin for AuthKit
+
+This package contains the components to support authentication and authorization
+on the Google App Engine.
+The authentication and authorization components are independent of each other,
+so you can use them separately.
+
+
+
+Using the authentication
+
+To use the GAE Users API based authentication all you need to do is put the
+following values into your configuration file:
+    authkit.setup.method = google
+    authkit.google.signoutpath = /path/to/signout
+
+The authkit.google.signoutpath work just like authkit.cookie.signoutpath, and
+just like the latter can be omitted if you don't wish to allow signing out.
+
+You can also specify the UsersProvider it will use to acquire the roles of the
+signed in users by setting:
+    authkit.google.authenticate.user.type = package.name:UsersProvider
+    authkit.google.authenticate.user.data = ...
+Where package.name:UsersProvider should be replaced with a valid
+authkit.users.Users subclass.
+
+
+
+Using the authorization
+
+If you wish to use the GAE Datastore to store the users, roles and groups, then
+you should use the authkit_gae.users:UsersFromDatastore class as your
+*.authenticate.user.type .
+
+You can use it with either the GAE authentication plugin or with the built in
+forms authentication method.
+
+UsersFromDatastore uses the predefined UserRole, UserGroup and BaseUser classes
+from authkit_gae.models to store the data in the Datastore. If you wish you can
+create a subclass of BaseUser and let the UsersFromDatastore use that by setting
+the *.authenticate.user.data to point to that calss, for example:
+    authkit.google.authenticate.user.data = package.name:MyUser
+
+
+
+Using both at the same time
+
+When using both at the same time, you can specify a magic role that will appear
+for the administrators by:
+    authkit.google.adminrole = superuser
+
+When changing the role in a already existing system, the role name must not
+conflict with any other pre-existing roles in the Datastore.
+
+Here is an example of a configuration utilizing all the features mentioned
+above:
+    authkit.setup.method = google
+    authkit.google.signoutpath = /auth/signout
+    authkit.google.adminrole = admin
+    authkit.google.authenticate.user.type = authkit_gae.users:UsersFromDatastore
+    authkit.google.authenticate.user.data = myblog.models:BlogUser
+
